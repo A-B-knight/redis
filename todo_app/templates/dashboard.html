@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}控制面板 - 任务管理系统{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="header">
+        <h1>欢迎, {{ username }}!</h1>
+        <div class="nav">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">控制面板</a>
+            <a href="{{ url_for('tasks') }}" class="btn btn-secondary">任务列表</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger">退出</a>
+        </div>
+    </div>
+    
+    <!-- 统计卡片 -->
+    <div class="stats">
+        <div class="stat-card">
+            <h3>{{ total_tasks }}</h3>
+            <p>总任务数</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ completed_tasks }}</h3>
+            <p>已完成</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ pending_tasks }}</h3>
+            <p>待完成</p>
+        </div>
+        <div class="stat-card">
+            <h3>#{{ user_rank or 'N/A' }}</h3>
+            <p>排行榜排名</p>
+        </div>
+    </div>
+    
+    <!-- 排行榜 -->
+    <div class="card">
+        <h2 style="margin-bottom: 20px;">🏆 任务完成排行榜</h2>
+        <div style="margin-bottom: 15px;">
+            <strong>你的排名:</strong> 第 {{ user_rank or 'N/A' }} 名 | 
+            <strong>完成数:</strong> {{ user_score }} 个任务
+        </div>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f7fafc; border-bottom: 2px solid #e2e8f0;">
+                    <th style="padding: 12px; text-align: left;">排名</th>
+                    <th style="padding: 12px; text-align: left;">用户名</th>
+                    <th style="padding: 12px; text-align: right;">完成数</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user_score in top_users %}
+                {% set rank = loop.index %}
+                {% set user = user_score[0] %}
+                {% set score = user_score[1] %}
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 12px;">
+                        {% if rank == 1 %}🥇
+                        {% elif rank == 2 %}🥈
+                        {% elif rank == 3 %}🥉
+                        {% else %}{{ rank }}{% endif %}
+                    </td>
+                    <td style="padding: 12px;">
+                        {% if user == username %}<strong style="color: #667eea;">{{ user }} (你)</strong>
+                        {% else %}{{ user }}{% endif %}
+                    </td>
+                    <td style="padding: 12px; text-align: right;">{{ score|int }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- 快速操作 -->
+    <div class="card">
+        <h2 style="margin-bottom: 20px;">快速操作</h2>
+        <div style="display: flex; gap: 15px;">
+            <a href="{{ url_for('tasks') }}" class="btn btn-primary">查看所有任务</a>
+            <a href="{{ url_for('tasks') }}?status=pending" class="btn btn-secondary">待完成任务</a>
+            <a href="{{ url_for('tasks') }}?status=completed" class="btn btn-success">已完成任务</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

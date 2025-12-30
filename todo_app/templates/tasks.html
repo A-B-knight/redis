@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}任务列表 - 任务管理系统{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="header">
+        <h1>任务管理</h1>
+        <div class="nav">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">返回控制面板</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger">退出</a>
+        </div>
+    </div>
+    
+    <!-- 筛选和添加任务 -->
+    <div style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div style="display: flex; gap: 10px;">
+            <a href="{{ url_for('tasks') }}" class="btn {% if status_filter == 'all' %}btn-primary{% else %}btn-secondary{% endif %}">全部</a>
+            <a href="{{ url_for('tasks') }}?status=pending" class="btn {% if status_filter == 'pending' %}btn-primary{% else %}btn-secondary{% endif %}">待完成</a>
+            <a href="{{ url_for('tasks') }}?status=completed" class="btn {% if status_filter == 'completed' %}btn-primary{% else %}btn-secondary{% endif %}">已完成</a>
+        </div>
+        <button onclick="showAddTaskModal()" class="btn btn-success">+ 添加任务</button>
+    </div>
+    
+    <!-- 任务列表 -->
+    <div id="tasks-container">
+        {% if tasks %}
+            {% for task in tasks %}
+            <div class="card" style="margin-bottom: 15px; padding: 20px;" id="task-{{ task.id }}">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <input type="checkbox" 
+                                   {% if task.status == 'completed' %}checked{% endif %}
+                                   onchange="toggleTask('{{ task.id }}')"
+                                   style="width: 20px; height: 20px; cursor: pointer;">
+                            <h3 style="{% if task.status == 'completed' %}text-decoration: line-through; color: #999;{% endif %}">
+                                {{ task.title }}
+                            </h3>
+                            <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; 
+                                        {% if task.status == 'completed' %}background: #c6f6d5; color: #22543d;
+                                        {% else %}background: #fed7d7; color: #c53030;{% endif %}">
+                                {% if task.status == 'completed' %}已完成{% else %}待完成{% endif %}
+                            </span>
+                        </div>
+                        {% if task.description %}
+                        <p style="color: #666; margin-bottom: 10px;">{{ task.description }}</p>
+                        {% endif %}
+                        <div style="font-size: 12px; color: #999;">
+                            创建时间: {{ task.created_at|timestamp_to_date }}
+                            {% if task.completed_at %}
+                            | 完成时间: {{ task.completed_at|timestamp_to_date }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="editTask('{{ task.id }}')" class="btn btn-secondary" style="padding: 8px 15px;">编辑</button>
+                        <button onclick="deleteTask('{{ task.id }}')" class="btn btn-danger" style="padding: 8px 15px;">删除</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="card" style="text-align: center; padding: 40px; color: #999;">
+                <p>暂无任务，点击"添加任务"开始吧！</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 添加/编辑任务模态框 -->
+<div id="taskModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="max-width: 500px; margin: 20px;">
+        <div class="header">
+            <h2 id="modalTitle">添加任务</h2>
+            <button onclick="closeTaskModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        <form id="taskForm">
+            <input type="hidden" id="taskId">
+            <div class="form-group">
+                <label for="taskTitle">任务标题 *</label>
+                <input type="text" id="taskTitle" required>
+            </div>
+            <div class="form-group">
+                <label for="taskDescription">任务描述</label>
+                <textarea id="taskDescription"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="button" onclick="closeTaskModal()" class="btn btn-secondary">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentTaskId = null;
+
+function showAddTaskModal() {
+    currentTaskId = null;
+    document.getElementById('modalTitle').textContent = '添加任务';
+    document.getElementById('taskId').value = '';
+    document.getElementById('taskTitle').value = '';
+    document.getElementById('taskDescription').value = '';
+    document.getElementById('taskModal').style.display = 'flex';
+}
+
+function editTask(taskId) {
+    // 这里可以添加获取任务详情的逻辑
+    currentTaskId = taskId;
+    document.getElementById('modalTitle').textContent = '编辑任务';
+    document.getElementById('taskId').value = taskId;
+    
+    // 从页面获取任务信息（简化版）
+    const taskElement = document.getElementById('task-' + taskId);
+    // 实际应用中应该通过 API 获取完整信息
+    document.getElementById('taskModal').style.display = 'flex';
+}
+
+function closeTaskModal() {
+    document.getElementById('taskModal').style.display = 'none';
+}
+
+document.getElementById('taskForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const title = document.getElementById('taskTitle').value;
+    const description = document.getElementById('taskDescription').value;
+    const taskId = document.getElementById('taskId').value;
+    
+    try {
+        if (taskId) {
+            // 更新任务
+            const response = await fetch(`/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title, description})
+            });
+            const result = await response.json();
+            if (result.success) {
+                location.reload();
+            }
+        } else {
+            // 创建任务
+            const response = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title, description})
+            });
+            const result = await response.json();
+            if (result.success) {
+                location.reload();
+            }
+        }
+    } catch (error) {
+        alert('操作失败: ' + error.message);
+    }
+});
+
+async function toggleTask(taskId) {
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/toggle`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        if (result.success) {
+            location.reload();
+        }
+    } catch (error) {
+        alert('操作失败: ' + error.message);
+    }
+}
+
+async function deleteTask(taskId) {
+    if (!confirm('确定要删除这个任务吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/tasks/${taskId}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+        if (result.success) {
+            document.getElementById('task-' + taskId).remove();
+        }
+    } catch (error) {
+        alert('删除失败: ' + error.message);
+    }
+}
+
+// 点击模态框外部关闭
+document.getElementById('taskModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeTaskModal();
+    }
+});
+</script>
+
+<style>
+/* 添加时间戳转换的样式 */
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 时间戳转换函数（简化版，实际应该在后端处理）
+document.addEventListener('DOMContentLoaded', function() {
+    // 这里可以添加时间格式化逻辑
+});
+</script>
+{% endblock %}
+
